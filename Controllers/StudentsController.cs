@@ -6,6 +6,9 @@ using ClosedXML.Excel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PdfSharp.Drawing;
+using PdfSharp.Drawing.Layout;
+using PdfSharp.Pdf;
 using StudentManagementBackend.DataTransferObjects;
 using StudentManagementBackend.Entities;
 using StudentManagementBackend.Repositories;
@@ -25,7 +28,7 @@ namespace StudentManagementBackend.Controllers
             _studentRepository = studentRepository;
             _attendanceLogRepository = attendanceLogRepository;
         }
-        
+
         [HttpGet]
         public ActionResult<IEnumerable<Student>> GetStudents()
         {
@@ -67,6 +70,7 @@ namespace StudentManagementBackend.Controllers
             {
                 return NotFound();
             }
+
             _studentRepository.DeleteStudent(id);
             return NoContent();
         }
@@ -90,7 +94,7 @@ namespace StudentManagementBackend.Controllers
             _attendanceLogRepository.InsertAttendanceLog(attendanceLog);
             return Ok();
         }
-        
+
         [HttpPost("{id}/Leave")]
         public IActionResult Leave(Guid id)
         {
@@ -140,6 +144,37 @@ namespace StudentManagementBackend.Controllers
                 }
             }
         }
-        
+
+        [HttpGet("ExportToPdf")]
+        public IActionResult ExportToPdf()
+        {
+            PdfDocument document = new PdfDocument();
+            document.Info.Title = $"Generated at {DateTime.Now}";
+            PdfPage page = document.AddPage();
+            
+            
+
+            XGraphics gfx = XGraphics.FromPdfPage(page);
+            XFont font = new XFont("Verdana", 14, XFontStyle.Regular);
+            XTextFormatter tf = new XTextFormatter(gfx);
+            XRect rect = new XRect(40, 100, page.Width, page.Height);
+            gfx.DrawRectangle(XBrushes.SeaShell, rect);
+
+            foreach (var student in _studentRepository.GetAllStudents())
+            {
+                tf.DrawString($"{student.FullName}", font, XBrushes.Black, rect, XStringFormats.TopLeft);
+            }
+
+            using (var stream = new MemoryStream())
+            {
+                document.Save(stream);
+                var content = stream.ToArray();
+                return File(
+                    content,
+                    "application/pdf",
+                    "users.pdf");
+            }
+            
+        }
     }
 }
